@@ -13,6 +13,7 @@
 #include "prometheus/gauge.h"
 #include "prometheus/histogram.h"
 #include "prometheus/registry.h"
+#include "prometheus/summary.h"
 
 int main() {
   using namespace prometheus;
@@ -90,11 +91,20 @@ int main() {
     sum_of_bucket_values += i;
   }
 
+  auto& summary_family = BuildSummary()
+                             .Name("name_summary_family")
+                             .Help("help summary_family")
+                             .Register(*registry);
+
+  auto& summary = summary_family.Add(
+      {}, Summary::Quantiles{
+              {0.5, 0.05}, {0.9, 0.01}, {0.95, 0.005}, {0.99, 0.001}});
+
   // ask the exposer to scrape the registry on incoming HTTP requests
   exposer.RegisterCollectable(registry);
 
   for (;;) {
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     const auto random_value = std::rand();
     std::cout << "random_value: " << random_value
               << ", random_value%10: " << random_value % 10 << std::endl;
@@ -123,6 +133,8 @@ int main() {
     }
     // each bucket 증가분에 대해 전체를 한번에 업데이트
     histogram_multi.ObserveMultiple(bucket_increments, sum_of_bucket_values);
+
+    summary.Observe(random_value % 100);
   }
   return 0;
 }
