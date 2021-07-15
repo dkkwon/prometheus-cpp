@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "prometheus/client_metric.h"
 #include "prometheus/counter.h"
@@ -12,12 +13,13 @@
 #include "prometheus/family.h"
 #include "prometheus/gauge.h"
 #include "prometheus/histogram.h"
+#include "prometheus/metric_family.h"
 #include "prometheus/registry.h"
 #include "prometheus/summary.h"
 
-int main() {
-  using namespace prometheus;
+using namespace prometheus;
 
+int main() {
   // create an http server running on port 8080
   Exposer exposer{"127.0.0.1:8080"};
 
@@ -134,7 +136,32 @@ int main() {
     // each bucket 증가분에 대해 전체를 한번에 업데이트
     histogram_multi.ObserveMultiple(bucket_increments, sum_of_bucket_values);
 
-    summary.Observe(random_value % 100);
+    summary.Observe(random_value % 1000);
+
+    auto counter_packet_families = packet_counter.Collect();
+    auto counter_http_families = http_requests_counter.Collect();
+
+    auto gauge_rerquests_families = gauge_requests_counter.Collect();
+
+    auto histogram_single_families = histogram_family.Collect();
+    auto histogram_multiple_families = histogram_multiple.Collect();
+
+    auto summary_families = summary_family.Collect();
+
+    for (auto& family : gauge_rerquests_families) {
+      std::cout << "name: " << family.name << std::endl;
+      // std::cout << "help: " << family.help << std::endl;
+      // std::cout << "type: " << int(family.type) << std::endl;
+      for (auto& metric : family.metric) {
+        std::cout << "label(";
+        for (auto& label : metric.label) {
+          std::cout << label.name << ", " << label.value;
+        }
+        std::cout << ")\t";
+        // std::cout << "counter: " << metric.counter.value << std::endl;
+        std::cout << "guage: " << metric.gauge.value << std::endl;
+      }
+    }
   }
   return 0;
 }
